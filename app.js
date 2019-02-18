@@ -56,7 +56,7 @@ async function onRequest (clientReq, clientRes) {
  * @return {String} translatedPath
  */
 function translatePath (originalPath) {
-  return originalPath.replace('directions/v5/mapbox', 'route/v1').split('?')[0] + '?steps=true&geometries=polyline6&annotations=true&overview=full&continue_straight=true'
+  return originalPath.replace('directions/v5/mapbox', 'route/v1').split('?')[0] + '?steps=true&geometries=polyline6&annotations=true&overview=full&continue_straight=true&geometries=polyline5'
 }
 
 /**
@@ -216,6 +216,7 @@ function getOrigin (url) {
 function translateResult (originalResult) {
   let translatedResult = Object.assign({}, originalResult)
   translatedResult.uuid = 1
+  translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
   return translatedResult
 }
 
