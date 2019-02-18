@@ -216,7 +216,7 @@ function getOrigin (url) {
 function translateResult (originalResult) {
   let translatedResult = Object.assign({}, originalResult)
   translatedResult.uuid = 1
-  // translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
+  translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
   return translatedResult
 }
 
