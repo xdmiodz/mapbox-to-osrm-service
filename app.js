@@ -6,12 +6,13 @@ const fetch = require('node-fetch')
 const polyline = require('@mapbox/polyline')
 const osrmTextInstructions = require('osrm-text-instructions')('v5')
 
-const baseUrl = 'http://localhost:5000'
+const baseUrl = process.env.OSRM_BACKEND || 'http://localhost:5000'
+const port = process.env.PORT || 3000
 const intersectionDist = 100
 const alternatives = 5;
 const stripAlternative = false
 
-http.createServer(onRequest).listen(3000)
+http.createServer(onRequest).listen(parseInt(port))
 
 /**
  * Catch all incoming request in order to translate them.
