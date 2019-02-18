@@ -56,7 +56,7 @@ async function onRequest (clientReq, clientRes) {
  * @return {String} translatedPath
  */
 function translatePath (originalPath) {
-  return originalPath.replace('directions/v5/mapbox', 'route/v1').split('?')[0] + '?steps=true&geometries=polyline6&annotations=true&overview=full&continue_straight=true&geometries=polyline5'
+  return originalPath.replace('directions/v5/mapbox', 'route/v1').split('?')[0] + '?steps=true&annotations=true&overview=full&continue_straight=true'
 }
 
 /**
@@ -216,7 +216,7 @@ function getOrigin (url) {
 function translateResult (originalResult) {
   let translatedResult = Object.assign({}, originalResult)
   translatedResult.uuid = 1
-  translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
+  // translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
   return translatedResult
 }
 
@@ -282,7 +282,7 @@ function getAlternativeRoutes (intersection, destination) {
  */
 function getRoute (waypoints) {
   let coordinates = toCoordinateString(waypoints)
-  return fetch(`${baseUrl}/route/v1/driving/${coordinates}?steps=true&geometries=polyline6`)
+  return fetch(`${baseUrl}/route/v1/driving/${coordinates}?steps=true`)
     .then(res => res.json())
 }
 
