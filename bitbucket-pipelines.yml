@@ -1,0 +1,31 @@
+definitions:
+  step: &Dockerbuild
+    name: Dockerbuild
+    services:
+    - docker
+    caches:
+    - docker
+    script:
+    - docker login --username $DOCKER_HUB_USERNAME --password $DOCKER_HUB_PASSWORD
+    - |
+        docker build -t \
+        $IMAGE_NAME:$BITBUCKET_BRANCH -t $IMAGE_NAME:${BITBUCKET_COMMIT:0:8} \
+        -f Dockerfile .
+
+    - docker push $IMAGE_NAME:$BITBUCKET_BRANCH
+    - docker push $IMAGE_NAME:${BITBUCKET_COMMIT:0:8}
+
+pipelines:
+  caches:
+  - git-modules
+  - docker
+  default:
+  - step: *Dockerbuild
+  branches:
+    staging:
+    - step: *Dockerbuild
+    dev:
+    - step: *Dockerbuild
+
+options:
+  docker: true

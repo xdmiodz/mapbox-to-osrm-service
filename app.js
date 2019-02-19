@@ -19,7 +19,7 @@ http.createServer(onRequest).listen(parseInt(port))
  * @param {Object} clientReq
  * @param {Object} clientRes
  */
-async function onRequest (clientReq, clientRes) {
+async function onRequest(clientReq, clientRes) {
   let osrmPath = translatePath(clientReq.url)
   let result = await fetch(`${baseUrl}${osrmPath}`).then(res => res.json())
 
@@ -30,20 +30,6 @@ async function onRequest (clientReq, clientRes) {
   let origin = getOrigin(clientReq.url);
   let intersections = fetchIntersections(result.routes[0], alternatives)
   translatedResult.routes[0] = fetchInstructions(result.routes[0])
-  let alternativeRoutes = await Promise.all(intersections.map(intersection => {
-    return getAlternativeRoutes(intersection, destination)
-  }))
-
-  alternativeRoutes.forEach(alternativeRoute => {
-    if (alternativeRoute.length > 0 && !hasCycle(alternativeRoute[0].routes[0],alternativeRoute[0].waypoints,origin)) {
-      let route = stripAlternative ? stripAlternativeRoute(alternativeRoute[0].routes[0]) : alternativeRoute[0].routes[0]
-
-      route.legs[1].annotation = {
-        congestion: new Array(polyline.decode(route.geometry).length - 1).fill(getColor(route, translatedResult.routes[0]))
-      }
-      translatedResult.routes.push(route)
-    }
-  })
 
   clientRes.write(JSON.stringify(translatedResult))
   clientRes.end('\n')
@@ -55,8 +41,10 @@ async function onRequest (clientReq, clientRes) {
  * @param {String} originalPath
  * @return {String} translatedPath
  */
-function translatePath (originalPath) {
-  return originalPath.replace('directions/v5/mapbox', 'route/v1').split('?')[0] + '?steps=true&annotations=true&overview=full&continue_straight=true'
+function translatePath(originalPath) {
+  return originalPath.replace('directions/v5/mapbox', 'route/v1')
+    .split('?')[0] +
+    '?steps=true&annotations=true&overview=full&continue_straight=true'
 }
 
 /**
@@ -64,7 +52,7 @@ function translatePath (originalPath) {
  * @param {Object} route
  * @return {Array} intersections
  */
-function fetchIntersections (route, limit) {
+function fetchIntersections(route, limit) {
   let intersections = []
   let count = 0
   let duration = 0
@@ -89,7 +77,7 @@ function fetchIntersections (route, limit) {
  * @param {Object} route
  * @return {Object} route
  */
-function fetchInstructions (route) {
+function fetchInstructions(route) {
   route.legs.map(leg => {
     for (let i = 0; i < leg.steps.length; i++) {
       leg.steps[i].maneuver.instruction = ''
@@ -99,7 +87,9 @@ function fetchInstructions (route) {
       leg.steps[i].voiceInstructions = [{
         distanceAlongGeometry: leg.steps[i].distance,
         announcement: osrmTextInstructions.compile('en', leg.steps[i + 1]),
-        ssmlAnnouncement: '<speak><amazon:effect name="drc"><prosody rate="1.08">' + osrmTextInstructions.compile('en', leg.steps[i + 1]) + '</prosody></amazon:effect></speak>'
+        ssmlAnnouncement: '<speak><amazon:effect name="drc"><prosody rate="1.08">' +
+          osrmTextInstructions.compile('en', leg.steps[i + 1]) +
+          '</prosody></amazon:effect></speak>'
       }]
       leg.steps[i].bannerInstructions = [{
         distanceAlongGeometry: leg.steps[i].distance,
@@ -112,7 +102,7 @@ function fetchInstructions (route) {
           type: leg.steps[i + 1].maneuver.type,
           modifier: leg.steps[i + 1].maneuver.modifier,
           degrees: leg.steps[i + 1].maneuver.bearing_after,
-          driving_side: 'right'
+          driving_side: leg.steps[i + 1].driving_side
         },
         secondary: null
       }]
@@ -128,35 +118,38 @@ function fetchInstructions (route) {
  * @param {Array} waypoints
  * @param {Geopoint} origin
  */
-function hasCycle (route,waypoints,origin) {
+function hasCycle(route, waypoints, origin) {
 
-  // Checks if there are U-turns with waypoints distance ; Could do it with the intersection distance but seems complicated
-  if(waypoints.length !==0) {
-      let distanceCounter = 0;
-      for (let waypoint of waypoints) {
-          if (waypoint.distance) {
-              if (waypoint.distance > distanceCounter)
-                  distanceCounter = waypoint.distance;
-              if (waypoint.distance < distanceCounter)
-                  return true;
-          }
+  // Checks if there are U-turns with waypoints distance ; Could do it with the
+  // intersection distance but seems complicated
+  if (waypoints.length !== 0) {
+    let distanceCounter = 0;
+    for (let waypoint of waypoints) {
+      if (waypoint.distance) {
+        if (waypoint.distance > distanceCounter)
+          distanceCounter = waypoint.distance;
+        if (waypoint.distance < distanceCounter)
+          return true;
       }
+    }
   }
 
-
   let intersections = {};
-  for (let [legIndex,leg] of route.legs.entries()) {
-    for (let [stepIndex,step] of leg.steps.entries()) {
-      for (let [intersectionIndex,intersection] of step.intersections.entries()) {
+  for (let [legIndex, leg] of route.legs.entries()) {
+    for (let [stepIndex, step] of leg.steps.entries()) {
+      for (let [intersectionIndex, intersection] of step.intersections
+        .entries()) {
 
-      // If intersection not far from origin and it isn't the first one of the first step of the first....
-        if((intersectionIndex!==0 &&
-            stepIndex !==0 &&
-            legIndex !==0 ) &&
-            !checkDistance(toGeopoint(""+intersection.location[0]+","+intersection.location[1]+""),origin,25/1000)) // Distance in km
-            return true;
+        // If intersection not far from origin and it isn't the first one of the
+        // first step of the first....
+        if ((intersectionIndex !== 0 && stepIndex !== 0 && legIndex !== 0) &&
+          !checkDistance(toGeopoint("" + intersection.location[0] + "," +
+              intersection.location[1] + ""),
+            origin, 25 / 1000)) // Distance in km
+          return true;
 
-        intersections[toGeostring(intersection.location)] = intersections[toGeostring(intersection.location)] + 1 || 0
+        intersections[toGeostring(intersection.location)] =
+          intersections[toGeostring(intersection.location)] + 1 || 0
         if (intersections[toGeostring(intersection.location)] > 1) {
           return true
         }
@@ -171,10 +164,9 @@ function hasCycle (route,waypoints,origin) {
  * @param {String} url
  * @return {Geopoint} destination
  */
-function getDestination (url) {
+function getDestination(url) {
   return toGeopoint(url.split('/')[5].split(';')[1].split('?')[0])
 }
-
 
 /**
  * Check the distance between two points
@@ -182,41 +174,41 @@ function getDestination (url) {
  * @param {Geopoint} secondGeo
  * @param {number} distance
  */
- // Check https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
- // Haversine formula
+// Check
+// https://stackoverflow.com/questions/27928/calculate-distance-between-two-latitude-longitude-points-haversine-formula
+// Haversine formula
 
-function checkDistance(firstGeo,secondGeo,distance){
-    let p = 0.017453292519943295;    // Math.PI / 180
-    let c = Math.cos;
-    let a = 0.5 - c((secondGeo.lat - firstGeo.lat) * p)/2 +
-        c(firstGeo.lat * p) * c(secondGeo.lat * p) *
-        (1 - c((secondGeo.lon - firstGeo.lon) * p))/2;
+function checkDistance(firstGeo, secondGeo, distance) {
+  let p = 0.017453292519943295; // Math.PI / 180
+  let c = Math.cos;
+  let a = 0.5 - c((secondGeo.lat - firstGeo.lat) * p) / 2 +
+    c(firstGeo.lat * p) * c(secondGeo.lat * p) *
+    (1 - c((secondGeo.lon - firstGeo.lon) * p)) / 2;
 
-    let calculatedDistance = 12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
-    return calculatedDistance>distance
+  let calculatedDistance =
+    12742 * Math.asin(Math.sqrt(a)); // 2 * R; R = 6371 km
+  return calculatedDistance > distance
 }
-
-
 
 /**
  * Get the origin by parsing the url in url format.
  * @param {String} url
  * @return {Geopoint} origin
  */
-function getOrigin (url) {
-    return toGeopoint(url.split('/')[5].split(';')[0])
+function getOrigin(url) {
+  return toGeopoint(url.split('/')[5].split(';')[0])
 }
-
 
 /**
  * The mapbox sdk needs a uuid, crashes otherwise. So append one here.
  * @param {Object} originalResult
  * @return {Object} translatedResult
  */
-function translateResult (originalResult) {
+function translateResult(originalResult) {
   let translatedResult = Object.assign({}, originalResult)
   translatedResult.uuid = 1
-  translatedResult.routes.forEach(route => route.legs.forEach(leg => delete leg.annotation))
+  translatedResult.routes.forEach(
+    route => route.legs.forEach(leg => delete leg.annotation))
   return translatedResult
 }
 
@@ -227,20 +219,23 @@ function translateResult (originalResult) {
  * @param {Object} intersection
  * @return {Array} viaPoints
  */
-function getViaPoints (intersection) {
+function getViaPoints(intersection) {
   let initialPoint = toGeopoint(intersection.location)
   let otherBearings = intersection.bearings
   let bearingIn = otherBearings[intersection.in]
-  let bearingOut = otherBearings[intersection.out]
+  let bearingOut =
+    otherBearings[intersection.out]
 
-  // Remove bearings of current primary route and the ones ones in wrong direction
-  otherBearings = otherBearings.filter(bearing =>
-    bearing !== bearingOut && bearing !== bearingIn
-  )
+  // Remove bearings of current primary route and the ones ones in wrong
+  // direction
+  otherBearings = otherBearings.filter(bearing => bearing !== bearingOut &&
+    bearing !== bearingIn)
 
-  var viaPoints = otherBearings.map(bearing => {
-    return geolib.computeDestinationPoint(initialPoint, intersectionDist, bearing)
-  })
+  var viaPoints =
+    otherBearings.map(bearing => {
+      return geolib.computeDestinationPoint(
+        initialPoint, intersectionDist, bearing)
+    })
   return viaPoints
 }
 
@@ -250,17 +245,14 @@ function getViaPoints (intersection) {
  * @param {Geopoint} destination
  * @return {Promise[]|routes} alternative routes
  */
-function getAlternativeRoutes (intersection, destination) {
+function getAlternativeRoutes(intersection, destination) {
   return new Promise((resolve, reject) => {
     let start = toGeopoint(intersection.location)
     let viaPoints = getViaPoints(intersection)
-    let alternativeRoutes = viaPoints.map(viaPoint => {
-      return getRoute([
-        start,
-        viaPoint,
-        destination
-      ])
-    })
+    let alternativeRoutes = viaPoints.map(
+      viaPoint => {
+        return getRoute([start, viaPoint, destination])
+      })
 
     Promise.all(alternativeRoutes).then(routes => {
       let sortedRoutes = routes.sort((a, b) => {
@@ -280,7 +272,7 @@ function getAlternativeRoutes (intersection, destination) {
  * @param {Array} points
  * @return {Promse|Route}
  */
-function getRoute (waypoints) {
+function getRoute(waypoints) {
   let coordinates = toCoordinateString(waypoints)
   return fetch(`${baseUrl}/route/v1/driving/${coordinates}?steps=true`)
     .then(res => res.json())
@@ -291,7 +283,7 @@ function getRoute (waypoints) {
  * @param {Object} alternativeRoute
  * @param {Object} originalRoute
  */
-function getColor (alternativeRoute, originalRoute) {
+function getColor(alternativeRoute, originalRoute) {
   let extraTime = alternativeRoute.duration - originalRoute.duration
   let extraPercentage = alternativeRoute.duration / originalRoute.duration
 
@@ -307,8 +299,10 @@ function getColor (alternativeRoute, originalRoute) {
  * @param {Object} alternativeRoute
  * @return {Object} alternativeRoute
  */
-function stripAlternativeRoute (alternativeRoute) {
-  alternativeRoute.geometry = polyline.encode(polyline.decode(alternativeRoute.legs[0].steps[0].geometry).concat(polyline.decode(alternativeRoute.legs[0].steps[1].geometry)))
+function stripAlternativeRoute(alternativeRoute) {
+  alternativeRoute.geometry = polyline.encode(
+    polyline.decode(alternativeRoute.legs[0].steps[0].geometry)
+    .concat(polyline.decode(alternativeRoute.legs[0].steps[1].geometry)))
   return alternativeRoute
 }
 
@@ -317,7 +311,7 @@ function stripAlternativeRoute (alternativeRoute) {
  * @param {Array} waypoints
  * @return {String} coordinate string
  */
-function toCoordinateString (waypoints) {
+function toCoordinateString(waypoints) {
   return waypoints
     .map(waypoint => {
       if (waypoint.longitude) {
@@ -325,7 +319,8 @@ function toCoordinateString (waypoints) {
         waypoint.lat = waypoint.latitude
       }
       return `${waypoint.lon},${waypoint.lat}`
-    }).join(';')
+    })
+    .join(';')
 }
 
 /**
@@ -333,7 +328,7 @@ function toCoordinateString (waypoints) {
  * @param {Array} waypoint
  * @return {String} waypoint
  */
-function toGeostring (waypoint) {
+function toGeostring(waypoint) {
   return `${waypoint[0]};${waypoint[1]}`
 }
 
@@ -342,8 +337,9 @@ function toGeostring (waypoint) {
  * @param {String} coordinateString
  * @return {Geopoint} geopoint
  */
-function toGeopoint (waypoint) {
-  let coordinates = (typeof waypoint === 'string') ? waypoint.split(',') : waypoint
+function toGeopoint(waypoint) {
+  let coordinates =
+    (typeof waypoint === 'string') ? waypoint.split(',') : waypoint
   return {
     lon: coordinates[0],
     lat: coordinates[1]
